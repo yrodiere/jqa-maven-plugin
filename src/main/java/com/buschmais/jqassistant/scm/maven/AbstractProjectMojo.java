@@ -16,12 +16,12 @@ import org.apache.maven.project.MavenProject;
 public abstract class AbstractProjectMojo extends AbstractMojo {
 
     @Override
-    public final void execute(final MavenProject rootModule, final Set<MavenProject> executedModules) throws MojoExecutionException,
+    public final void execute(final MavenProject rootModule, final Set<MavenProject> executedModules, final Set<MavenProject> skippedExecutionModules) throws MojoExecutionException,
             MojoFailureException {
         Map<MavenProject, List<MavenProject>> projects =
                 ProjectResolver.getProjects(reactorProjects, rulesDirectory, useExecutionRootAsProjectRoot);
         final List<MavenProject> projectModules = projects.get(rootModule);
-        boolean isLastModuleInProject = isLastModuleInProject(executedModules, projectModules);
+        boolean isLastModuleInProject = isLastModuleInProject(executedModules, skippedExecutionModules, projectModules);
         getLog().debug(
                 "Verifying if '" + currentProject + "' is last module for project '" + rootModule + "': " + isLastModuleInProject
                         + (" (project modules='" + projectModules + "')."));
@@ -39,10 +39,11 @@ public abstract class AbstractProjectMojo extends AbstractMojo {
      * Determines if the last module for a project is currently executed.
      *
      * @param executedModules The executed modules.
+     * @param skippedExecutionModules The skipped modules.
      * @param projectModules  The modules of the project.
      * @return <code>true</code> if the current module is the last of the project.
      */
-    private boolean isLastModuleInProject(Set<MavenProject> executedModules, List<MavenProject> projectModules) {
+    private boolean isLastModuleInProject(Set<MavenProject> executedModules, Set<MavenProject> skippedExecutionModules, List<MavenProject> projectModules) {
         int modulesWithPluginConfiguration = 0;
         for (MavenProject currentModule : projectModules) {
             if (ProjectResolver.containsBuildPlugin(currentModule, execution.getPlugin())) {
@@ -57,7 +58,7 @@ public abstract class AbstractProjectMojo extends AbstractMojo {
             getLog().debug("No plugin configuration found in modules for current project.");
             expectedModules = projectModules.size();
         }
-        return (expectedModules == executedModules.size() + 1);
+        return (expectedModules == executedModules.size() + skippedExecutionModules.size() + 1);
     }
 
     /**
