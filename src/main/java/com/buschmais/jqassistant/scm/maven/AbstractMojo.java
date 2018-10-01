@@ -209,14 +209,10 @@ public abstract class AbstractMojo extends org.apache.maven.plugin.AbstractMojo 
         }
         if (skip) {
             getLog().info("Skipping execution.");
-            MavenProject rootModule = ProjectResolver.getRootModule(currentProject, reactorProjects, rulesDirectory, useExecutionRootAsProjectRoot);
-            Set<MavenProject> skippedExecutionModules = getSkippedExecutionModules(rootModule);
-            skippedExecutionModules.add(currentProject);
         } else {
             MavenProject rootModule = ProjectResolver.getRootModule(currentProject, reactorProjects, rulesDirectory, useExecutionRootAsProjectRoot);
             Set<MavenProject> executedModules = getExecutedModules(rootModule);
-            Set<MavenProject> skippedExecutionModules = getSkippedExecutionModules(rootModule);
-            execute(rootModule, executedModules, skippedExecutionModules);
+            execute(rootModule, executedModules);
             executedModules.add(currentProject);
         }
     }
@@ -226,11 +222,10 @@ public abstract class AbstractMojo extends org.apache.maven.plugin.AbstractMojo 
      *
      * @param rootModule      The root module of the project.
      * @param executedModules The already executed modules of the project.
-     * @param skippedExecutionModules The configured, but skipped modules of the project so far.
      * @throws MojoExecutionException If a general execution problem occurs.
      * @throws MojoFailureException   If a failure occurs.
      */
-    protected abstract void execute(MavenProject rootModule, Set<MavenProject> executedModules, Set<MavenProject> skippedExecutionModules) throws MojoExecutionException, MojoFailureException;
+    protected abstract void execute(MavenProject rootModule, Set<MavenProject> executedModules) throws MojoExecutionException, MojoFailureException;
 
     /**
      * Determine if the store shall be reset before execution of the mofo.
@@ -357,31 +352,18 @@ public abstract class AbstractMojo extends org.apache.maven.plugin.AbstractMojo 
      * @return The set of already executed modules belonging to the root module.
      */
     protected Set<MavenProject> getExecutedModules(MavenProject rootModule) {
-        return getOrCreateFromExecutionMap( rootModule, AbstractProjectMojo.class.getName() + "#executedModules" );
-    }
-
-    /**
-     * Determine the modules whose execution was skipped for a given root module.
-     *
-     * @param rootModule The root module.
-     * @return The set of already executed modules belonging to the root module.
-     */
-    protected Set<MavenProject> getSkippedExecutionModules(MavenProject rootModule) {
-        return getOrCreateFromExecutionMap( rootModule, AbstractProjectMojo.class.getName() + "#skippedExecutionModules" );
-    }
-
-    private Set<MavenProject> getOrCreateFromExecutionMap(MavenProject rootModule, String contextKey) {
         ExecutionKey key = new ExecutionKey(execution);
-        Map<ExecutionKey, Set<MavenProject>> executionMap =
-            (Map<ExecutionKey, Set<MavenProject>>) rootModule.getContextValue(contextKey);
-        if (executionMap == null) {
-            executionMap = new HashMap<>();
-            rootModule.setContextValue(contextKey, executionMap);
+        String executedModulesContextKey = AbstractProjectMojo.class.getName() + "#executedModules";
+        Map<ExecutionKey, Set<MavenProject>> executedProjectsPerExecutionKey =
+                (Map<ExecutionKey, Set<MavenProject>>) rootModule.getContextValue(executedModulesContextKey);
+        if (executedProjectsPerExecutionKey == null) {
+            executedProjectsPerExecutionKey = new HashMap<>();
+            rootModule.setContextValue(executedModulesContextKey, executedProjectsPerExecutionKey);
         }
-        Set<MavenProject> executedProjects = executionMap.get(key);
+        Set<MavenProject> executedProjects = executedProjectsPerExecutionKey.get(key);
         if (executedProjects == null) {
             executedProjects = new HashSet<>();
-            executionMap.put(key, executedProjects);
+            executedProjectsPerExecutionKey.put(key, executedProjects);
         }
         return executedProjects;
     }
